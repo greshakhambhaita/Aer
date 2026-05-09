@@ -1,0 +1,3 @@
+{
+  "extends": "@Aer/config/tsconfig.base.json"
+}

@@ -1,0 +1,52 @@
+{
+  "name": "Aer",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "packages/*"
+    ],
+    "catalog": {
+      "dotenv": "^17.2.2",
+      "zod": "^4.1.13",
+      "typescript": "^6",
+      "@types/bun": "^1.3.4",
+      "hono": "^4.8.2",
+      "@trpc/server": "^11.16.0",
+      "better-auth": "1.6.9",
+      "ai": "^6.0.3",
+      "next-themes": "^0.4.6",
+      "@trpc/client": "^11.16.0",
+      "@types/react-dom": "^19.2.3",
+      "drizzle-orm": "^0.45.1"
+    }
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "check-types": "turbo check-types",
+    "dev:web": "turbo -F web dev",
+    "dev:server": "turbo -F server dev",
+    "db:push": "turbo -F @Aer/db db:push",
+    "db:studio": "turbo -F @Aer/db db:studio",
+    "db:generate": "turbo -F @Aer/db db:generate",
+    "db:migrate": "turbo -F @Aer/db db:migrate",
+    "db:local": "turbo -F @Aer/db db:local",
+    "check": "oxlint && oxfmt --write"
+  },
+  "dependencies": {
+    "@Aer/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@Aer/config": "workspace:*",
+    "@types/bun": "catalog:",
+    "oxfmt": "^0.46.0",
+    "oxlint": "^1.61.0",
+    "turbo": "^2.8.12",
+    "typescript": "catalog:"
+  },
+  "packageManager": "bun@1.3.3"
+}

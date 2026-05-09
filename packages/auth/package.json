@@ -1,0 +1,24 @@
+{
+  "name": "@Aer/auth",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@Aer/db": "workspace:*",
+    "@Aer/env": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@Aer/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}
