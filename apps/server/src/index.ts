@@ -2,12 +2,8 @@ import { createContext } from "@Aer/api/context";
 import { appRouter } from "@Aer/api/routers/index";
 import { auth } from "@Aer/auth";
 import { env } from "@Aer/env/server";
-import { devToolsMiddleware } from "@ai-sdk/devtools";
-import { google } from "@ai-sdk/google";
 import { trpcServer } from "@hono/trpc-server";
-import { streamText, convertToModelMessages, wrapLanguageModel } from "ai";
 import { initLogger } from "evlog";
-import { createAILogger, createEvlogIntegration } from "evlog/ai";
 import { createAuthMiddleware, type BetterAuthInstance } from "evlog/better-auth";
 import { evlog, type EvlogVariables } from "evlog/hono";
 import { Hono } from "hono";
@@ -52,25 +48,7 @@ app.use(
   }),
 );
 
-app.post("/ai", async (c) => {
-  const body = await c.req.json();
-  const uiMessages = body.messages || [];
-  const ai = createAILogger(c.get("log"));
-  const model = wrapLanguageModel({
-    model: google("gemini-2.5-flash"),
-    middleware: devToolsMiddleware(),
-  });
-  const result = streamText({
-    model: ai.wrap(model),
-    messages: await convertToModelMessages(uiMessages),
-    experimental_telemetry: {
-      isEnabled: true,
-      integrations: [createEvlogIntegration(ai)],
-    },
-  });
 
-  return result.toUIMessageStreamResponse();
-});
 
 app.get("/", (c) => {
   return c.text("OK");

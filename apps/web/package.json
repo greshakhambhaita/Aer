@@ -14,7 +14,6 @@
     "@Aer/api": "workspace:*",
     "@Aer/env": "workspace:*",
     "@Aer/ui": "workspace:*",
-    "@ai-sdk/react": "^3.0.3",
     "@hookform/resolvers": "^5.2.2",
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-form": "^1.28.0",
@@ -23,7 +22,6 @@
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
     "@trpc/tanstack-react-query": "^11.16.0",
-    "ai": "catalog:",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "lucide-react": "^1.8.0",
@@ -31,7 +29,6 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "sonner": "^2.0.7",
-    "streamdown": "^1.6.10",
     "zod": "catalog:"
   },
   "devDependencies": {
