@@ -6,15 +6,13 @@ import { trpc } from "@/utils/trpc";
 
 export const Route = createFileRoute("/dashboard")({
   component: RouteComponent,
-  beforeLoad: async () => {
-    const session = await authClient.getSession();
-    if (!session.data) {
+  beforeLoad: async ({ context }) => {
+    if (!context.session) {
       redirect({
         to: "/login",
         throw: true,
       });
     }
-    return { session };
   },
 });
 
@@ -26,7 +24,7 @@ function RouteComponent() {
   return (
     <div>
       <h1>Dashboard</h1>
-      <p>Welcome {session.data?.user.name}</p>
+      <p>Welcome {session?.user.name}</p>
       <p>API: {privateData.data?.message}</p>
     </div>
   );

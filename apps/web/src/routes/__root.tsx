@@ -4,16 +4,23 @@ import { HeadContent, Outlet, createRootRouteWithContext } from "@tanstack/react
 
 import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
-import type { trpc } from "@/utils/trpc";
+import { sessionQueryOptions, type trpc } from "@/utils/trpc";
+
+import { authClient } from "@/lib/auth-client";
 
 import "../index.css";
 
 export interface RouterAppContext {
   trpc: typeof trpc;
   queryClient: QueryClient;
+  session: Awaited<ReturnType<typeof authClient.getSession>>["data"];
 }
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
+  beforeLoad: async ({ context }) => {
+    const session = await context.queryClient.ensureQueryData(sessionQueryOptions);
+    return { session };
+  },
   component: RootComponent,
   head: () => ({
     meta: [

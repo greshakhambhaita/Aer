@@ -2,11 +2,13 @@ import { Button } from "@Aer/ui/components/button";
 import { Input } from "@Aer/ui/components/input";
 import { Label } from "@Aer/ui/components/label";
 import { useForm } from "@tanstack/react-form";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
+import { queryClient, sessionQueryOptions } from "@/utils/trpc";
 
 import Loader from "./loader";
 
@@ -14,7 +16,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
   const navigate = useNavigate({
     from: "/",
   });
-  const { isPending } = authClient.useSession();
+  const { isPending } = useQuery(sessionQueryOptions);
 
   const form = useForm({
     defaultValues: {
@@ -30,7 +32,10 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
           name: value.name,
         },
         {
-          onSuccess: () => {
+          onSuccess: async () => {
+            await queryClient.invalidateQueries({
+              queryKey: sessionQueryOptions.queryKey,
+            });
             navigate({
               to: "/dashboard",
             });

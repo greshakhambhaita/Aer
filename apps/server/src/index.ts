@@ -4,7 +4,6 @@ import { auth } from "@Aer/auth";
 import { env } from "@Aer/env/server";
 import { trpcServer } from "@hono/trpc-server";
 import { initLogger } from "evlog";
-import { createAuthMiddleware, type BetterAuthInstance } from "evlog/better-auth";
 import { evlog, type EvlogVariables } from "evlog/hono";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -13,16 +12,65 @@ initLogger({
   env: { service: "Aer-server" },
 });
 
-const identifyUser = createAuthMiddleware(auth as BetterAuthInstance, {
-  exclude: ["/api/auth/**"],
-  maskEmail: true,
-});
-
 const app = new Hono<EvlogVariables>();
 
-app.use(evlog());
+app.on(["GET", "POST", "PUT", "DELETE", "PATCH"], "*", evlog());
+
 app.use("*", async (c, next) => {
-  await identifyUser(c.get("log"), c.req.raw.headers, c.req.path);
+  const path = c.req.path;
+  const method = c.req.method;
+
+  if (method === "OPTIONS" || path.startsWith("/api/auth/")) return next();
+
+  const log = c.get("log");
+  if (!log) return next();
+
+  const start = Date.now();
+  try {
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+    const duration = Date.now() - start;
+    const identified = !!session;
+
+    if (session) {
+      log.set({
+        userId: session.user.id,
+        sessionId: session.session.id,
+        auth: true,
+      });
+
+      // Log full identity only when it changes or is new
+      const isNewSession = Date.now() - new Date(session.session.createdAt).getTime() < 10000;
+      if (isNewSession) {
+        log.set({
+          user: session.user,
+          session: session.session,
+          identity_event: "created",
+        });
+      }
+    } else {
+      log.set({ auth: false });
+    }
+
+    if (duration > 50 || !identified) {
+      log.set({
+        auth_perf: {
+          resolvedIn: duration,
+          identified,
+        },
+      });
+    }
+  } catch (err) {
+    const duration = Date.now() - start;
+    log.set({
+      auth: false,
+      auth_perf: {
+        resolvedIn: duration,
+        identified: false,
+        error: true,
+      },
+    });
+  }
+
   await next();
 });
 

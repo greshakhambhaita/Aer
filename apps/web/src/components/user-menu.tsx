@@ -9,13 +9,15 @@ import {
   DropdownMenuTrigger,
 } from "@Aer/ui/components/dropdown-menu";
 import { Skeleton } from "@Aer/ui/components/skeleton";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 
 import { authClient } from "@/lib/auth-client";
+import { queryClient, sessionQueryOptions } from "@/utils/trpc";
 
 export default function UserMenu() {
   const navigate = useNavigate();
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session, isPending } = useQuery(sessionQueryOptions);
 
   if (isPending) {
     return <Skeleton className="h-9 w-24" />;
@@ -44,7 +46,10 @@ export default function UserMenu() {
             onClick={() => {
               authClient.signOut({
                 fetchOptions: {
-                  onSuccess: () => {
+                  onSuccess: async () => {
+                    await queryClient.invalidateQueries({
+                      queryKey: sessionQueryOptions.queryKey,
+                    });
                     navigate({
                       to: "/",
                     });

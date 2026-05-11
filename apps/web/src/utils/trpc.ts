@@ -3,9 +3,19 @@ import { env } from "@Aer/env/web";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
+import { queryOptions } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { authClient } from "@/lib/auth-client";
+
 export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+    },
+  },
   queryCache: new QueryCache({
     onError: (error, query) => {
       toast.error(error.message, {
@@ -35,4 +45,12 @@ export const trpcClient = createTRPCClient<AppRouter>({
 export const trpc = createTRPCOptionsProxy<AppRouter>({
   client: trpcClient,
   queryClient,
+});
+
+export const sessionQueryOptions = queryOptions({
+  queryKey: ["session"],
+  queryFn: async () => {
+    const res = await authClient.getSession();
+    return res.data;
+  },
 });
