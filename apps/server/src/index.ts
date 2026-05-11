@@ -12,66 +12,79 @@ initLogger({
   env: { service: "Aer-server" },
 });
 
-const app = new Hono<EvlogVariables>();
+type AppVariables = EvlogVariables & {
+  Variables: {
+    session: Awaited<ReturnType<typeof auth.api.getSession>> | null;
+  };
+};
+
+const app = new Hono<AppVariables>();
 
 app.on(["GET", "POST", "PUT", "DELETE", "PATCH"], "*", evlog());
 
+// 1. Auth Resolution Middleware (Pure logic + Context storage)
 app.use("*", async (c, next) => {
   const path = c.req.path;
-  const method = c.req.method;
-
-  if (method === "OPTIONS" || path.startsWith("/api/auth/")) return next();
-
-  const log = c.get("log");
-  if (!log) return next();
-
-  const start = Date.now();
-  try {
-    const session = await auth.api.getSession({ headers: c.req.raw.headers });
-    const duration = Date.now() - start;
-    const identified = !!session;
-
-    if (session) {
-      log.set({
-        userId: session.user.id,
-        sessionId: session.session.id,
-        auth: true,
-      });
-
-      // Log full identity only when it changes or is new
-      const isNewSession = Date.now() - new Date(session.session.createdAt).getTime() < 10000;
-      if (isNewSession) {
-        log.set({
-          user: session.user,
-          session: session.session,
-          identity_event: "created",
-        });
-      }
-    } else {
-      log.set({ auth: false });
-    }
-
-    if (duration > 50 || !identified) {
-      log.set({
-        auth_perf: {
-          resolvedIn: duration,
-          identified,
-        },
-      });
-    }
-  } catch (err) {
-    const duration = Date.now() - start;
-    log.set({
-      auth: false,
-      auth_perf: {
-        resolvedIn: duration,
-        identified: false,
-        error: true,
-      },
-    });
+  if (path.startsWith("/api/auth/") || c.req.method === "OPTIONS") {
+    return next();
   }
 
+  try {
+    const session = await auth.api.getSession({ headers: c.req.raw.headers });
+    c.set("session", session);
+  } catch (err) {
+    c.set("session", null);
+  }
   await next();
+});
+
+// 2. Logging & Observability Middleware (Side-effects)
+app.use("*", async (c, next) => {
+  const log = c.get("log");
+  if (!log || c.req.method === "OPTIONS") return next();
+
+  const start = Date.now();
+  await next();
+  const duration = Date.now() - start;
+
+  const session = c.get("session");
+  const isMutation = ["POST", "PUT", "DELETE", "PATCH"].includes(c.req.method);
+  const isError = c.res.status >= 400;
+  const isSlow = duration > 100;
+
+  // Identity attribution - only on mutations, errors, or slow requests
+  if (session && (isMutation || isError || isSlow)) {
+    log.set({
+      userId: session.user.id,
+      sessionId: session.session.id,
+      auth: true,
+    });
+
+    // Detailed identity only for very new sessions
+    const isNewSession = Date.now() - new Date(session.session.createdAt).getTime() < 10000;
+    if (isNewSession) {
+      log.set({
+        identity_event: "created",
+        user_email: session.user.email,
+      });
+    }
+  } else if (session) {
+    // For normal queries, keep it in DEBUG context if supported or just omit from INFO
+    // Here we use set() but we'll mark the whole request level later
+    log.set({ auth: true });
+  } else {
+    log.set({ auth: false });
+  }
+
+  // Level separation
+  if (isError) {
+    log.set({ level: "error", duration });
+  } else if (isMutation || isSlow) {
+    log.set({ level: "info", duration });
+  } else {
+    // Normal GET queries are DEBUG level
+    log.set({ level: "debug", duration });
+  }
 });
 
 app.use(
