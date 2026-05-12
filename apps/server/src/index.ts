@@ -111,27 +111,44 @@ app.use(
 );
 
 app.post("/api/audio/upload", async (c) => {
+  const session = c.get("session");
+  if (!session) {
+    return c.json({ success: false, error: "Unauthorized" }, 401);
+  }
+
   try {
     const body = await c.req.parseBody();
     const file = body["file"];
 
-    if (!(file instanceof File)) {
+    // Robust file check (Hono's parseBody might return File or string)
+    if (!file || typeof file === "string" || !("size" in file)) {
       return c.json({ success: false, error: "No file provided" }, 400);
     }
 
-    const transcript = await transcribeAudio(file);
+    if (file.size === 0) {
+      return c.json({ success: false, error: "Empty file" }, 400);
+    }
+
+    if (file.size > 10 * 1024 * 1024) { // Increased to 10MB
+      return c.json({ success: false, error: "File too large (max 10MB)" }, 400);
+    }
+
+    const transcript = await transcribeAudio(file as unknown as File);
 
     return c.json({
       success: true,
       transcript,
     });
   } catch (err) {
-    console.error("STT error:", err);
+    const log = c.get("log");
+    const error = err instanceof Error ? err.message : String(err);
+    log?.set({ error });
+    console.error("STT error:", error);
 
     return c.json(
       {
         success: false,
-        error: "Transcription failed",
+        error: error || "Transcription failed",
       },
       500
     );

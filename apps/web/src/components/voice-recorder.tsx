@@ -81,6 +81,7 @@ export function MicRecorder({ uploadUrl }: Props) {
       const res = await fetch(uploadUrl, {
         method: "POST",
         body: formData,
+        credentials: "include",
       });
 
       if (!res.ok) {
