@@ -2,6 +2,7 @@ import { createContext } from "@Aer/api/context";
 import { appRouter } from "@Aer/api/routers/index";
 import { auth } from "@Aer/auth";
 import { env } from "@Aer/env/server";
+import { transcribeAudio } from "@Aer/api/routers/stt";
 import { trpcServer } from "@hono/trpc-server";
 import { initLogger } from "evlog";
 import { evlog, type EvlogVariables } from "evlog/hono";
@@ -110,16 +111,31 @@ app.use(
 );
 
 app.post("/api/audio/upload", async (c) => {
-  const body = await c.req.parseBody();
-  const file = body["file"];
-  if (file instanceof File) {
-    console.log("Received file:", file.name, file.size, file.type);
+  try {
+    const body = await c.req.parseBody();
+    const file = body["file"];
+
+    if (!(file instanceof File)) {
+      return c.json({ success: false, error: "No file provided" }, 400);
+    }
+
+    const transcript = await transcribeAudio(file);
+
+    return c.json({
+      success: true,
+      transcript,
+    });
+  } catch (err) {
+    console.error("STT error:", err);
+
+    return c.json(
+      {
+        success: false,
+        error: "Transcription failed",
+      },
+      500
+    );
   }
-  return c.json({
-    success: true,
-    message: "Garbage collected!",
-    received: file instanceof File ? file.name : "none",
-  });
 });
 
 
