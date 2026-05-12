@@ -3,6 +3,7 @@ import { appRouter } from "@Aer/api/routers/index";
 import { auth } from "@Aer/auth";
 import { env } from "@Aer/env/server";
 import { transcribeAudio } from "@Aer/api/routers/stt";
+import { extractTasks } from "@Aer/api/routers/task-extractor";
 import { trpcServer } from "@hono/trpc-server";
 import { initLogger } from "evlog";
 import { evlog, type EvlogVariables } from "evlog/hono";
@@ -135,10 +136,10 @@ app.post("/api/audio/upload", async (c) => {
 
     const transcript = await transcribeAudio(file as unknown as File);
 
-    return c.json({
-      success: true,
-      transcript,
-    });
+    const tasks = await extractTasks(transcript, session.user.id);
+    console.log(`[task-extractor] Extracted ${tasks.length} task(s):`, JSON.stringify(tasks, null, 2));
+
+    return c.json({ success: true });
   } catch (err) {
     const log = c.get("log");
     const error = err instanceof Error ? err.message : String(err);

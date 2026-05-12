@@ -8,6 +8,7 @@ export const env = createEnv({
     GOOGLE_CLIENT_ID: z.string(),
     GOOGLE_CLIENT_SECRET: z.string(),
     BETTER_AUTH_SECRET: z.string().min(32),
+    OPENROUTER_API_KEY: z.string(),
     BETTER_AUTH_URL: z.url(),
     CORS_ORIGIN: z.url(),
     ELEVENLABS_API_KEY: z.string(),

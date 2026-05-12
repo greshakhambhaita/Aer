@@ -36,6 +36,8 @@
   },
   "dependencies": {
     "@Aer/env": "workspace:*",
+    "@ai-sdk/openai": "^3.0.63",
+    "ai": "^6.0.177",
     "dotenv": "catalog:",
     "zod": "catalog:"
   },

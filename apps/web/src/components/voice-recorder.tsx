@@ -4,12 +4,6 @@ type Props = {
   uploadUrl: string; // e.g. "/api/audio/upload"
 };
 
-function normalizeTranscript(text: string): string {
-  return text
-    .replace(/\bhalo\b/gi, "hello")
-    .replace(/\bhallo\b/gi, "hello");
-}
-
 export function MicRecorder({ uploadUrl }: Props) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -17,7 +11,7 @@ export function MicRecorder({ uploadUrl }: Props) {
 
   const [isRecording, setIsRecording] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [transcript, setTranscript] = useState<string>("");
+
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -89,9 +83,7 @@ export function MicRecorder({ uploadUrl }: Props) {
       }
 
       const data = await res.json();
-      if (data.success) {
-        setTranscript(normalizeTranscript(data.transcript));
-      } else {
+      if (!data.success) {
         console.error("STT failed:", data.error);
       }
     } catch (err) {
@@ -118,16 +110,10 @@ export function MicRecorder({ uploadUrl }: Props) {
           Stop Recording
         </button>
       )}
-      {transcript && (
-        <div className="text-sm text-black mt-2">
-          <strong>Transcript:</strong> {transcript}
-        </div>
-      )}
 
       {isUploading && (
-        <span className="text-sm text-gray-500">Uploading...</span>
+        <span className="text-sm text-gray-500">Processing...</span>
       )}
-
     </div>
   );
 }
