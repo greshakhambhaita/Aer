@@ -109,6 +109,19 @@ app.use(
   }),
 );
 
+app.post("/api/audio/upload", async (c) => {
+  const body = await c.req.parseBody();
+  const file = body["file"];
+  if (file instanceof File) {
+    console.log("Received file:", file.name, file.size, file.type);
+  }
+  return c.json({
+    success: true,
+    message: "Garbage collected!",
+    received: file instanceof File ? file.name : "none",
+  });
+});
+
 
 
 app.get("/", (c) => {

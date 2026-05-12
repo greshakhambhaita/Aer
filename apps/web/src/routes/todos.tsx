@@ -17,11 +17,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@Aer/ui/components/select";
+import { env } from "@Aer/env/web";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Edit2, Loader2, Trash2 } from "lucide-react";
 import { useReducer } from "react";
 
+import { MicRecorder } from "@/components/voice-recorder";
 import { trpc } from "@/utils/trpc";
 
 export const Route = createFileRoute("/todos")({
@@ -210,8 +212,9 @@ function TodosRoute() {
   return (
     <div className="mx-auto w-full max-w-2xl py-10">
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="font-semibold">Todos</CardTitle>
+          <MicRecorder uploadUrl={`${env.VITE_SERVER_URL}/api/audio/upload`} />
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Add form */}
