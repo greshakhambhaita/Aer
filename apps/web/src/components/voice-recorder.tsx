@@ -2,9 +2,10 @@ import { useRef, useState } from "react";
 
 type Props = {
   uploadUrl: string; // e.g. "/api/audio/upload"
+  onTasksSaved?: (count: number) => void;
 };
 
-export function MicRecorder({ uploadUrl }: Props) {
+export function MicRecorder({ uploadUrl, onTasksSaved }: Props) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
@@ -85,6 +86,8 @@ export function MicRecorder({ uploadUrl }: Props) {
       const data = await res.json();
       if (!data.success) {
         console.error("STT failed:", data.error);
+      } else {
+        onTasksSaved?.(data.savedTasks ?? 0);
       }
     } catch (err) {
       console.error("Upload error:", err);

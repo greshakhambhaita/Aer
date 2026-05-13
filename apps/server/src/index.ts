@@ -4,6 +4,8 @@ import { auth } from "@Aer/auth";
 import { env } from "@Aer/env/server";
 import { transcribeAudio } from "@Aer/api/routers/stt";
 import { extractTasks } from "@Aer/api/routers/task-extractor";
+import { db } from "@Aer/db";
+import { todo } from "@Aer/db/schema/todo";
 import { trpcServer } from "@hono/trpc-server";
 import { initLogger } from "evlog";
 import { evlog, type EvlogVariables } from "evlog/hono";
@@ -137,9 +139,14 @@ app.post("/api/audio/upload", async (c) => {
     const transcript = await transcribeAudio(file as unknown as File);
 
     const tasks = await extractTasks(transcript, session.user.id);
-    console.log(`[task-extractor] Extracted ${tasks.length} task(s):`, JSON.stringify(tasks, null, 2));
 
-    return c.json({ success: true });
+    if (tasks.length > 0) {
+      await db.insert(todo).values(tasks);
+    }
+
+    console.log(`[stt] Saved ${tasks.length} task(s) from voice to DB`);
+
+    return c.json({ success: true, savedTasks: tasks.length });
   } catch (err) {
     const log = c.get("log");
     const error = err instanceof Error ? err.message : String(err);

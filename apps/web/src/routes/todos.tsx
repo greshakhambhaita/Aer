@@ -214,7 +214,10 @@ function TodosRoute() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="font-semibold">Todos</CardTitle>
-          <MicRecorder uploadUrl={`${env.VITE_SERVER_URL}/api/audio/upload`} />
+          <MicRecorder
+            uploadUrl={`${env.VITE_SERVER_URL}/api/audio/upload`}
+            onTasksSaved={() => todos.refetch()}
+          />
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Add form */}
