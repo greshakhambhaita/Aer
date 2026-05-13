@@ -82,7 +82,11 @@ async function transcribeWithElevenLabs(file: File): Promise<string> {
 
   const res = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
     method: "POST",
-    headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY! },
+    headers: {
+      "xi-api-key": process.env.ELEVENLABS_API_KEY!,
+      "Accept-Encoding": "gzip,deflate",
+      "Connection": "keep-alive",
+    },
     body: formData,
   });
 
@@ -104,14 +108,20 @@ async function transcribeWithElevenLabs(file: File): Promise<string> {
 }
 
 async function transcribeWithDeepgram(file: File): Promise<string> {
-  const res = await fetch("https://api.deepgram.com/v1/listen?model=nova-3", {
+  const contentType = file.type || "audio/webm";
+  const res = await fetch(
+    "https://api.deepgram.com/v1/listen?model=nova-3&language=en",
+    {
     method: "POST",
     headers: {
       Authorization: `Token ${process.env.DEEPGRAM_API_KEY}`,
-      "Content-Type": "audio/webm",
+      "Content-Type": contentType,
+      "Accept-Encoding": "gzip,deflate",
+      "Connection": "keep-alive",
     },
-    body: await file.arrayBuffer(),
-  });
+    body: file,
+  }
+  );
 
   if (!res.ok) {
     let body = "(unreadable)";

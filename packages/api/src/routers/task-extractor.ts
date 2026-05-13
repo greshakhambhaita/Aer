@@ -181,13 +181,16 @@ export async function extractTasks(
     return [];
   }
 
+  const systemPrompt =
+    buildExtractionPrompt(timezone) + "\n\n" + buildEnrichmentPrompt(timezone);
+
   let lastError: unknown;
   for (const model of MODELS) {
     try {
       const { object } = await generateObject({
         model: openrouter(model),
         schema: LLMResponseSchema,
-        system: buildExtractionPrompt(timezone) + "\n\n" + buildEnrichmentPrompt(timezone),
+        system: systemPrompt,
         prompt: transcript,
       });
 
@@ -198,18 +201,23 @@ export async function extractTasks(
         const chunks = naiveSplit(transcript);
 
         if (chunks.length > 1) {
-          const fallbackTasks: typeof tasks = [];
-
-          for (const chunk of chunks) {
-            try {
-              const { object: sub } = await generateObject({
+          const fallbackResults = await Promise.allSettled(
+            chunks.map(async (chunk) =>
+              generateObject({
                 model: openrouter(model),
                 schema: LLMResponseSchema,
-                system: buildExtractionPrompt(timezone) + "\n\n" + buildEnrichmentPrompt(timezone),
+                system: systemPrompt,
                 prompt: chunk,
-              });
-              fallbackTasks.push(...sub.tasks);
-            } catch { }
+              })
+            )
+          );
+
+          const fallbackTasks: typeof tasks = [];
+
+          for (const result of fallbackResults) {
+            if (result.status === "fulfilled") {
+              fallbackTasks.push(...result.value.object.tasks);
+            }
           }
 
           if (fallbackTasks.length > 1) tasks = fallbackTasks;
