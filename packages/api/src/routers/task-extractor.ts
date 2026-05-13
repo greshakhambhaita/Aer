@@ -5,9 +5,11 @@ import z from "zod";
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 const MODELS = [
-  "google/gemini-2.0-flash-001",  // fastest, move to top
+  "deepseek/deepseek-chat",
+  "google/gemini-2.5-flash-lite",
+
+  "google/gemini-2.0-flash-001",
   "openai/gpt-4o-mini",
-  "deepseek/deepseek-chat",       // slowest, move to bottom
 ] as const;
 
 const openrouter = createOpenAI({
@@ -30,15 +32,7 @@ const LLMResponseSchema = z.object({
 });
 
 // second pass schema (enrichment)
-const EnrichedTaskSchema = z.object({
-  text: z.string().min(1),
-  priority: PrioritySchema,
-  dueDateISO: z.string().datetime().nullable(),
-});
 
-const EnrichedResponseSchema = z.object({
-  tasks: z.array(EnrichedTaskSchema),
-});
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

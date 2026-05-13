@@ -20,30 +20,30 @@ export async function transcribeAudio(file: File): Promise<string> {
     throw new Error("transcribeAudio: received an empty file — nothing to transcribe");
   }
 
-  // Try ElevenLabs primary
+  // Try Deepgram primary
   try {
-    const primary = await transcribeWithElevenLabs(file);
+    const primary = await transcribeWithDeepgram(file);
     if (isValidTranscript(primary)) {
-      console.log(`[stt] provider=elevenlabs transcript="${primary.slice(0, 80)}${primary.length > 80 ? "…" : ""}"`);
+      console.log(`[stt] provider=Deepgram transcript="${primary.slice(0, 80)}${primary.length > 80 ? "…" : ""}"`);
       return primary;
     }
-    console.warn(`[stt] ElevenLabs transcript failed validation: "${primary}"`);
+    console.warn(`[stt] Deepgram transcript failed validation: "${primary}"`);
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
-    console.warn(`[stt] ElevenLabs failed (${reason}), falling back to Deepgram`);
+    console.warn(`[stt] Deepgram failed (${reason}), falling back to ElevenLabs`);
   }
 
-  // Try Deepgram fallback
+  // Try ElevenLabs fallback
   try {
-    const fallback = await transcribeWithDeepgram(file);
+    const fallback = await transcribeWithElevenLabs(file);
     if (isValidTranscript(fallback)) {
-      console.log(`[stt] provider=deepgram transcript="${fallback.slice(0, 80)}${fallback.length > 80 ? "…" : ""}"`);
+      console.log(`[stt] provider=ElevenLabs transcript="${fallback.slice(0, 80)}${fallback.length > 80 ? "…" : ""}"`);
       return fallback;
     }
-    console.warn(`[stt] Deepgram transcript failed validation: "${fallback}"`);
+    console.warn(`[stt] ElevenLabs transcript failed validation: "${fallback}"`);
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
-    console.error(`[stt] Deepgram fallback also failed: ${reason}`);
+    console.error(`[stt] ElevenLabs fallback also failed: ${reason}`);
   }
 
   throw new Error("No valid transcript from any provider");
