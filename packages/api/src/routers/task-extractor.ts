@@ -5,10 +5,9 @@ import z from "zod";
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 const MODELS = [
-  "deepseek/deepseek-chat",
-  "google/gemini-2.0-flash-001",
-
+  "google/gemini-2.0-flash-001",  // fastest, move to top
   "openai/gpt-4o-mini",
+  "deepseek/deepseek-chat",       // slowest, move to bottom
 ] as const;
 
 const openrouter = createOpenAI({
@@ -176,26 +175,6 @@ function naiveSplit(transcript: string): string[] {
     .filter(Boolean);
 }
 
-// ─── Enrichment Pass ──────────────────────────────────────────────────────────
-
-async function enrichTasks(
-  tasks: z.infer<typeof LLMTaskSchema>[],
-  model: (typeof MODELS)[number],
-  timezone: string
-) {
-  try {
-    const { object } = await generateObject({
-      model: openrouter(model),
-      schema: EnrichedResponseSchema,
-      system: buildEnrichmentPrompt(timezone),
-      prompt: JSON.stringify({ tasks }),
-    });
-
-    return object.tasks;
-  } catch {
-    return tasks; // fallback silently
-  }
-}
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -209,14 +188,12 @@ export async function extractTasks(
   }
 
   let lastError: unknown;
-
   for (const model of MODELS) {
     try {
-      // PASS 1: extraction
       const { object } = await generateObject({
         model: openrouter(model),
         schema: LLMResponseSchema,
-        system: buildExtractionPrompt(timezone),
+        system: buildExtractionPrompt(timezone) + "\n\n" + buildEnrichmentPrompt(timezone),
         prompt: transcript,
       });
 
@@ -234,24 +211,19 @@ export async function extractTasks(
               const { object: sub } = await generateObject({
                 model: openrouter(model),
                 schema: LLMResponseSchema,
-                system: buildExtractionPrompt(timezone),
+                system: buildExtractionPrompt(timezone) + "\n\n" + buildEnrichmentPrompt(timezone),
                 prompt: chunk,
               });
-
               fallbackTasks.push(...sub.tasks);
             } catch { }
           }
 
-          if (fallbackTasks.length > 1) {
-            tasks = fallbackTasks;
-          }
+          if (fallbackTasks.length > 1) tasks = fallbackTasks;
         }
       }
 
-      // PASS 2: enrichment
-      const enriched = await enrichTasks(tasks, model, timezone);
-
-      return enriched.map((task) => normalizeTask(task, userId));
+      // no enrichment pass — already done above
+      return tasks.map((task) => normalizeTask(task, userId));
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       console.warn(
