@@ -35,7 +35,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
               queryKey: sessionQueryOptions.queryKey,
             });
             navigate({
-              to: "/dashboard",
+              to: "/",
             });
             toast.success("Sign in successful");
           },
@@ -137,7 +137,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
           onClick={async () => {
             await authClient.signIn.social({
               provider: "google",
-              callbackURL: `${window.location.origin}/dashboard`
+              callbackURL: `${window.location.origin}/`
             });
           }}
         >
