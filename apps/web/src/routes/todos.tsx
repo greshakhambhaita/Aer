@@ -116,7 +116,11 @@ function reducer(state: State, action: Action): State {
       let editTime = "";
       if (todo.dueDate) {
         const d = new Date(todo.dueDate);
-        editDate = d.toISOString().split("T")[0];
+        // Use local date parts — toISOString() returns UTC which can be a different day
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        editDate = `${yyyy}-${mm}-${dd}`;
         editTime = d.toTimeString().split(" ")[0].slice(0, 5);
       }
       return {

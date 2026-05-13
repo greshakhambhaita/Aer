@@ -96,7 +96,7 @@ app.use(
   cors({
     origin: env.CORS_ORIGIN,
     allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Timezone"],
     credentials: true,
   }),
 );
@@ -138,7 +138,8 @@ app.post("/api/audio/upload", async (c) => {
 
     const transcript = await transcribeAudio(file as unknown as File);
 
-    const tasks = await extractTasks(transcript, session.user.id);
+    const clientTimezone = c.req.header("X-Timezone") ?? "UTC";
+    const tasks = await extractTasks(transcript, session.user.id, clientTimezone);
 
     if (tasks.length > 0) {
       await db.insert(todo).values(tasks);

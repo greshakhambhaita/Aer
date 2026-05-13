@@ -75,6 +75,9 @@ export function MicRecorder({ uploadUrl, onTasksSaved }: Props) {
 
       const res = await fetch(uploadUrl, {
         method: "POST",
+        headers: {
+          "X-Timezone": Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
         body: formData,
         credentials: "include",
       });
