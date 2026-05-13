@@ -1,53 +1,3 @@
-import ffmpegPath from "ffmpeg-static";
-import ffmpeg from "fluent-ffmpeg";
-import fs from "fs";
-import os from "os";
-import path from "path";
-
-ffmpeg.setFfmpegPath(ffmpegPath!);
-
-async function fileToWav(file: File): Promise<File> {
-  if (file.size === 0) {
-    throw new Error("fileToWav: input file is empty (0 bytes)");
-  }
-
-  const tmpDir = os.tmpdir();
-  const ts = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const inputPath = path.join(tmpDir, `stt-in-${ts}.webm`);
-  const outputPath = path.join(tmpDir, `stt-out-${ts}.wav`);
-
-  try {
-    fs.writeFileSync(inputPath, Buffer.from(await file.arrayBuffer()));
-
-    await new Promise<void>((resolve, reject) =>
-      ffmpeg(inputPath)
-        .toFormat("wav")
-        .audioCodec("pcm_s16le")
-        .on("end", () => resolve())
-        .on("error", (err: Error) =>
-          reject(new Error(`ffmpeg conversion failed: ${err.message}`))
-        )
-        .save(outputPath)
-    );
-
-    if (!fs.existsSync(outputPath)) {
-      throw new Error("ffmpeg produced no output file");
-    }
-
-    const wavBuffer = fs.readFileSync(outputPath);
-
-    if (wavBuffer.byteLength === 0) {
-      throw new Error("ffmpeg output WAV is empty (0 bytes)");
-    }
-
-    console.log(`[stt] WAV conversion: ${file.size}b webm → ${wavBuffer.byteLength}b wav`);
-    return new File([wavBuffer], "recording.wav", { type: "audio/wav" });
-  } finally {
-    for (const p of [inputPath, outputPath]) {
-      try { fs.unlinkSync(p); } catch { /* already gone, ignore */ }
-    }
-  }
-}
 
 // ─── ElevenLabs response shape ───────────────────────────────────────────────
 
@@ -74,6 +24,7 @@ export async function transcribeAudio(file: File): Promise<string> {
   try {
     const primary = await transcribeWithElevenLabs(file);
     if (isValidTranscript(primary)) {
+      console.log(`[stt] provider=elevenlabs transcript="${primary.slice(0, 80)}${primary.length > 80 ? "…" : ""}"`);
       return primary;
     }
     console.warn(`[stt] ElevenLabs transcript failed validation: "${primary}"`);
@@ -86,6 +37,7 @@ export async function transcribeAudio(file: File): Promise<string> {
   try {
     const fallback = await transcribeWithDeepgram(file);
     if (isValidTranscript(fallback)) {
+      console.log(`[stt] provider=deepgram transcript="${fallback.slice(0, 80)}${fallback.length > 80 ? "…" : ""}"`);
       return fallback;
     }
     console.warn(`[stt] Deepgram transcript failed validation: "${fallback}"`);
@@ -122,10 +74,8 @@ function isValidTranscript(text: string): boolean {
 }
 
 async function transcribeWithElevenLabs(file: File): Promise<string> {
-  const wavFile = await fileToWav(file);
-
   const formData = new FormData();
-  formData.append("file", wavFile);
+  formData.append("file", file);
   formData.append("model_id", "scribe_v1");
   formData.append("language_code", "en");
   formData.append("tag_audio_events", "false");
