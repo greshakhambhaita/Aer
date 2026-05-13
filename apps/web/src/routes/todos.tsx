@@ -1,3 +1,4 @@
+import { env } from "@Aer/env/web";
 import { Badge } from "@Aer/ui/components/badge";
 import { Button } from "@Aer/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@Aer/ui/components/card";
@@ -17,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@Aer/ui/components/select";
-import { env } from "@Aer/env/web";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Edit2, Loader2, Trash2, X } from "lucide-react";
