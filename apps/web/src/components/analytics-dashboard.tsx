@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { trpc } from "@/utils/trpc";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@Aer/ui/components/button";
 import { Card } from "@Aer/ui/components/card";
@@ -9,7 +9,18 @@ import { Checkbox } from "@Aer/ui/components/checkbox";
 export default function AnalyticsDashboard() {
   const [expanded, setExpanded] = useState(false);
 
+  const queryClient = useQueryClient();
+
   const { data, isLoading } = useQuery(trpc.analytics.getStats.queryOptions());
+
+  const updateStatus = useMutation(
+    trpc.todo.updateStatus.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries(trpc.analytics.getStats.queryKey());
+        void queryClient.invalidateQueries(trpc.todo.getAll.queryKey());
+      },
+    })
+  );
 
   if (isLoading) {
     return <div className="p-6 text-center">Loading analytics...</div>;
@@ -34,12 +45,18 @@ export default function AnalyticsDashboard() {
       {/* Needs Attention */}
       <Card className="p-4">
         <h2 className="font-semibold mb-2">Needs Attention Today</h2>
-        {needsAttention.map((t) => (
-          <div key={t.id} className="flex items-center gap-2">
-            <Checkbox />
-            <span>{t.text}</span>
-          </div>
-        ))}
+          {needsAttention.map((t) => (
+            <div key={t.id} className="flex items-center gap-2">
+              <Checkbox
+                checked={t.status === "completed"}
+                onCheckedChange={(checked) => {
+                  const nextStatus = checked ? "completed" : "created";
+                  updateStatus.mutate({ id: t.id, status: nextStatus });
+                }}
+              />
+              <span>{t.text}</span>
+            </div>
+          ))}
       </Card>
 
       {/* High Priority */}

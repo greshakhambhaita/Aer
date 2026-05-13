@@ -74,7 +74,7 @@ export function getCompletionStats(tasks: Task[]) {
       completed.length === 0
         ? 0
         : Math.round((onTime.length / completed.length) * 100),
-    avgCompletionTime: Math.round(avgTime / (1000 * 60 * 60)), // hours
+    avgCompletionTime: Number((avgTime / (1000 * 60 * 60)).toFixed(1)), // hours
   };
 }
 

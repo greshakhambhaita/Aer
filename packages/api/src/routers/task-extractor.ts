@@ -95,6 +95,13 @@ RULES:
 - later / someday → low
 - else → medium
 
+4. TIME OF DAY WORDS (STRICT)
+- morning → 09:00 local
+- afternoon → 15:00 local
+- evening → 19:00 local
+- tonight → 20:00 local
+- If the user says "tomorrow morning/afternoon/evening", apply the above time on that date
+
 Return clean, minimal tasks.
 `.trim();
 }

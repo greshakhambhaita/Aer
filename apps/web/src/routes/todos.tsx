@@ -20,7 +20,7 @@ import {
 import { env } from "@Aer/env/web";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Edit2, Loader2, Trash2 } from "lucide-react";
+import { Edit2, Loader2, Trash2, X } from "lucide-react";
 import { useReducer } from "react";
 
 import { MicRecorder } from "@/components/voice-recorder";
@@ -200,6 +200,10 @@ function TodosRoute() {
     trpc.todo.delete.mutationOptions({ onSuccess: () => todos.refetch() }),
   );
 
+  const updateStatusMutation = useMutation(
+    trpc.todo.updateStatus.mutationOptions({ onSuccess: () => todos.refetch() }),
+  );
+
   const handleAdd = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (text.trim()) createMutation.mutate({ text, priority });
@@ -265,8 +269,18 @@ function TodosRoute() {
                 return (
                   <li
                     key={t.id}
-                    className="flex items-center gap-2 rounded-md border p-3 transition-colors hover:bg-muted/50"
+                    className="group flex items-center gap-2 rounded-md border p-3 transition-colors hover:bg-muted/50"
                   >
+                    <button
+                      type="button"
+                      className="size-5 rounded-full border border-muted-foreground/50 transition-colors hover:border-muted-foreground"
+                      aria-label={t.status === "completed" ? "Mark as created" : "Mark as completed"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const nextStatus = t.status === "completed" ? "created" : "completed";
+                        updateStatusMutation.mutate({ id: t.id, status: nextStatus });
+                      }}
+                    />
                     {/* Accessible: button instead of div */}
                     <button
                       type="button"
@@ -299,6 +313,18 @@ function TodosRoute() {
                         onClick={() => dispatch({ type: "OPEN_EDIT", payload: t as TodoItem })}
                       >
                         <Edit2 className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Cancel todo"
+                        className="opacity-0 transition-opacity group-hover:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateStatusMutation.mutate({ id: t.id, status: "cancelled" });
+                        }}
+                      >
+                        <X className="size-4" />
                       </Button>
                       <Button
                         variant="ghost"

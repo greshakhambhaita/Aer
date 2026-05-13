@@ -1,6 +1,6 @@
 import { db } from "@Aer/db";
 import { todo } from "@Aer/db/schema/todo";
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull, lt, ne } from "drizzle-orm";
 import z from "zod";
 
 import { protectedProcedure, router } from "../index";
@@ -10,6 +10,20 @@ const priorityEnum = z.enum(["low", "medium", "high"]);
 
 export const todoRouter = router({
   getAll: protectedProcedure.query(async ({ ctx }) => {
+    const now = new Date();
+    await db
+      .update(todo)
+      .set({ status: "delayed", updatedAt: now })
+      .where(
+        and(
+          eq(todo.userId, ctx.session.user.id),
+          isNotNull(todo.dueDate),
+          lt(todo.dueDate, now),
+          ne(todo.status, "completed"),
+          ne(todo.status, "cancelled"),
+          ne(todo.status, "delayed")
+        )
+      );
     return await db
       .select()
       .from(todo)
