@@ -1,7 +1,7 @@
+import { trpc } from "@/utils/trpc";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
-
-import { trpc } from "@/utils/trpc";
+import AnalyticsDashboard from "../components/analytics-dashboard";
 
 export const Route = createFileRoute("/")({
   component: RouteComponent,
@@ -22,9 +22,7 @@ function RouteComponent() {
 
   return (
     <div>
-      <h1>Dashboard</h1>
-      <p>Welcome {session?.user.name}</p>
-      <p>API: {privateData.data?.message}</p>
+      <AnalyticsDashboard />
     </div>
   );
 }
