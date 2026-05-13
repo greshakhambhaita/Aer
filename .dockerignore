@@ -1,0 +1,17 @@
+node_modules
+.turbo
+dist
+# Exclude all .env files — runtime secrets are injected via docker-compose env_file
+.env
+.env.*
+**/.env
+**/.env.*
+local.db
+*.log
+.git
+.agents
+.vscode
+.gemini
+skills-lock.json
+bts.jsonc
+README.md

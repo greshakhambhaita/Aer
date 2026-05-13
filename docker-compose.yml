@@ -1,0 +1,26 @@
+services:
+  server:
+    build:
+      context: .
+      target: server
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./apps/server/.env
+    environment:
+      - DATABASE_URL=file:/app/local.db
+    volumes:
+      - ./local.db:/app/local.db
+    restart: always
+
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        - VITE_SERVER_URL=http://localhost:3000
+    ports:
+      - "5713:80"
+    depends_on:
+      - server
+    restart: always

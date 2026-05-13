@@ -5,12 +5,13 @@ import z from "zod";
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 const MODELS = [
-  "deepseek/deepseek-chat",
   "google/gemini-2.5-flash-lite",
-
   "google/gemini-2.0-flash-001",
   "openai/gpt-4o-mini",
 ] as const;
+
+// Task extraction output is tiny — cap tokens to avoid hitting OpenRouter free-tier limits
+const MAX_TOKENS = 1024;
 
 const openrouter = createOpenAI({
   baseURL: "https://openrouter.ai/api/v1",
@@ -199,6 +200,7 @@ export async function extractTasks(
         schema: LLMResponseSchema,
         system: systemPrompt,
         prompt: transcript,
+        maxTokens: MAX_TOKENS,
       });
 
       let tasks = object.tasks;
@@ -215,6 +217,7 @@ export async function extractTasks(
                 schema: LLMResponseSchema,
                 system: systemPrompt,
                 prompt: chunk,
+                maxTokens: MAX_TOKENS,
               })
             )
           );
