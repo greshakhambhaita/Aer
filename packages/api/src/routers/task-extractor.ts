@@ -5,13 +5,14 @@ import z from "zod";
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 const MODELS = [
-  "google/gemini-2.5-flash-lite",
-  "google/gemini-2.0-flash-001",
   "openai/gpt-4o-mini",
+  "google/gemini-2.0-flash-001",
+  "deepseek/deepseek-chat",
+
 ] as const;
 
-// Task extraction output is tiny — cap tokens to avoid hitting OpenRouter free-tier limits
-const MAX_TOKENS = 1024;
+// Task extraction output is tiny — keep tokens low for latency
+const MAX_TOKENS = 256;
 
 const openrouter = createOpenAI({
   baseURL: "https://openrouter.ai/api/v1",
@@ -32,8 +33,13 @@ const LLMResponseSchema = z.object({
   tasks: z.array(LLMTaskSchema),
 });
 
-// second pass schema (enrichment)
-
+const LLMRefinementSchema = z.object({
+  tasks: z.array(
+    z.object({
+      text: z.string().min(1),
+    })
+  ),
+});
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -103,49 +109,29 @@ RULES:
 - tonight → 20:00 local
 - If the user says "tomorrow morning/afternoon/evening", apply the above time on that date
 
+5. TASK TEXT QUALITY
+- Task text must be short and action-first (imperative verb)
+- Remove filler words and pronouns when possible
+- If dueDateISO is set, remove any date/time wording from the task text
+- Avoid vague references like "that thing" or "it"
+
 Return clean, minimal tasks.
 `.trim();
 }
 
-// ─── Prompt: PASS 2 (Enrichment) ───────────────────────────────────────────────
+// ─── Prompt: PASS 2 (Light Refinement) ────────────────────────────────────────
 
-function buildEnrichmentPrompt(timezone: string): string {
-  const localNow = new Date().toLocaleString("en-US", {
-    timeZone: timezone,
-    timeZoneName: "short",
-  });
-
+function buildRefinementPrompt(timezone: string): string {
   return `
-You are a task refinement assistant.
+You refine task titles.
 
-Current LOCAL time: ${localNow}
 Timezone: ${timezone}
 
-You will improve already extracted tasks.
-
-GOALS:
-
-1. RESOLVE VAGUENESS
-- Rewrite vague tasks into clearer actionable tasks
-- Example:
-  "finish that thing" → "Finish previously started work"
-
-2. SOFT TIME INFERENCE
-- "soon" → 1–3 days
-- "later" → 3–7 days
-- "sometime" → 2–5 days
-- If no time exists but urgency implied → assign reasonable date
-- All dates must be in UTC ISO 8601 format, resolved from ${timezone}
-
-3. CLEAN TEXT
-- Make tasks short, clear, and executable
-- Remove filler words
-
-4. DO NOT OVER-INVENT
-- Do not hallucinate specifics
-- Stay faithful to original meaning
-
-Return improved tasks.
+RULES:
+- Keep meaning; do not invent details
+- Make titles short and action-first
+- Remove date/time words if dueDateISO exists
+- Keep order; return same number of tasks
 `.trim();
 }
 
@@ -166,6 +152,15 @@ function normalizeTask(
     createdAt: now,
     updatedAt: now,
   };
+}
+
+function shouldRefineText(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  if (normalized.length > 64) return true;
+  if (/^(i|we)\b/.test(normalized)) return true;
+  if (/\b(need to|have to|should|please)\b/.test(normalized)) return true;
+  if (/\b(today|tomorrow|tonight|next|by|at|on|this|in)\b/.test(normalized)) return true;
+  return false;
 }
 
 // ─── Fallback Split ───────────────────────────────────────────────────────────
@@ -189,8 +184,7 @@ export async function extractTasks(
     return [];
   }
 
-  const systemPrompt =
-    buildExtractionPrompt(timezone) + "\n\n" + buildEnrichmentPrompt(timezone);
+  const systemPrompt = buildExtractionPrompt(timezone);
 
   let lastError: unknown;
   for (const model of MODELS) {
@@ -201,6 +195,7 @@ export async function extractTasks(
         system: systemPrompt,
         prompt: transcript,
         maxTokens: MAX_TOKENS,
+        maxRetries: 0,
       });
 
       let tasks = object.tasks;
@@ -218,6 +213,7 @@ export async function extractTasks(
                 system: systemPrompt,
                 prompt: chunk,
                 maxTokens: MAX_TOKENS,
+                maxRetries: 0,
               })
             )
           );
@@ -234,7 +230,34 @@ export async function extractTasks(
         }
       }
 
-      // no enrichment pass — already done above
+      if (tasks.length > 0 && tasks.some((task) => shouldRefineText(task.text))) {
+        try {
+          const refinementPrompt = buildRefinementPrompt(timezone);
+          const { object: refined } = await generateObject({
+            model: openrouter(model),
+            schema: LLMRefinementSchema,
+            system: refinementPrompt,
+            prompt: JSON.stringify({
+              tasks: tasks.map((task) => ({
+                text: task.text,
+                dueDateISO: task.dueDateISO,
+              })),
+            }),
+            maxTokens: 128,
+            maxRetries: 0,
+          });
+
+          if (refined.tasks.length === tasks.length) {
+            tasks = tasks.map((task, index) => ({
+              ...task,
+              text: refined.tasks[index]?.text ?? task.text,
+            }));
+          }
+        } catch {
+          // keep original tasks on refinement failure
+        }
+      }
+
       return tasks.map((task) => normalizeTask(task, userId));
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);

@@ -9,6 +9,10 @@ export function MicRecorder({ uploadUrl, onTasksSaved }: Props) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const silenceTimerRef = useRef<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
   const [isRecording, setIsRecording] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -27,8 +31,51 @@ export function MicRecorder({ uploadUrl, onTasksSaved }: Props) {
       streamRef.current = stream;
       chunksRef.current = [];
 
+      const audioContext = new AudioContext();
+      audioContextRef.current = audioContext;
+      const source = audioContext.createMediaStreamSource(stream);
+      sourceRef.current = source;
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2048;
+      analyserRef.current = analyser;
+      source.connect(analyser);
+      const data = new Uint8Array(analyser.fftSize);
+
+      const SILENCE_MS = 1200;
+      const THRESHOLD = 0.02;
+
+      const checkSilence = () => {
+        const recorder = mediaRecorderRef.current;
+        if (!recorder || recorder.state !== "recording") return;
+
+        analyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i += 1) {
+          const v = (data[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / data.length);
+
+        if (rms < THRESHOLD) {
+          if (silenceTimerRef.current == null) {
+            silenceTimerRef.current = window.setTimeout(() => {
+              stopRecording();
+              silenceTimerRef.current = null;
+            }, SILENCE_MS);
+          }
+        } else if (silenceTimerRef.current != null) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        }
+
+        requestAnimationFrame(checkSilence);
+      };
+
+      requestAnimationFrame(checkSilence);
+
       const recorder = new MediaRecorder(stream, {
         mimeType: "audio/webm",
+        audioBitsPerSecond: 16000,
       });
 
       recorder.ondataavailable = (event) => {
@@ -46,7 +93,7 @@ export function MicRecorder({ uploadUrl, onTasksSaved }: Props) {
       };
 
       mediaRecorderRef.current = recorder;
-      recorder.start();
+      recorder.start(250);
       setIsRecording(true);
     } catch (err) {
       console.error("Mic access failed:", err);
@@ -60,6 +107,18 @@ export function MicRecorder({ uploadUrl, onTasksSaved }: Props) {
 
     recorder.stop();
     setIsRecording(false);
+
+    if (silenceTimerRef.current != null) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+
+    sourceRef.current?.disconnect();
+    analyserRef.current?.disconnect();
+    sourceRef.current = null;
+    analyserRef.current = null;
+    audioContextRef.current?.close();
+    audioContextRef.current = null;
 
     // stop mic stream to release device
     streamRef.current?.getTracks().forEach((track) => track.stop());

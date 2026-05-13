@@ -5,6 +5,10 @@ interface ElevenLabsSTTResponse {
   text?: string;
 }
 
+interface GroqSTTResponse {
+  text?: string;
+}
+
 interface DeepgramResponse {
   results?: {
     channels?: Array<{
@@ -18,6 +22,19 @@ interface DeepgramResponse {
 export async function transcribeAudio(file: File): Promise<string> {
   if (file.size === 0) {
     throw new Error("transcribeAudio: received an empty file — nothing to transcribe");
+  }
+
+  // Try Groq (fast Whisper) primary
+  try {
+    const primary = await transcribeWithGroq(file);
+    if (isValidTranscript(primary)) {
+      console.log(`[stt] provider=Groq transcript="${primary.slice(0, 80)}${primary.length > 80 ? "…" : ""}"`);
+      return primary;
+    }
+    console.warn(`[stt] Groq transcript failed validation: "${primary}"`);
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    console.warn(`[stt] Groq failed (${reason}), falling back to Deepgram`);
   }
 
   // Try Deepgram primary
@@ -101,6 +118,40 @@ async function transcribeWithElevenLabs(file: File): Promise<string> {
   if (typeof data.text !== "string") {
     throw new Error(
       `ElevenLabs response missing 'text' field. Got keys: ${Object.keys(data).join(", ")}`
+    );
+  }
+
+  return cleanTranscript(data.text);
+}
+
+async function transcribeWithGroq(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("model", "whisper-large-v3-turbo");
+  formData.append("response_format", "json");
+  formData.append("language", "en");
+
+  const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      "Accept-Encoding": "gzip,deflate",
+      "Connection": "keep-alive",
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    let body = "(unreadable)";
+    try { body = await res.text(); } catch { /* ignore */ }
+    throw new Error(`Groq HTTP ${res.status}: ${body}`);
+  }
+
+  const data = (await res.json()) as GroqSTTResponse;
+
+  if (typeof data.text !== "string") {
+    throw new Error(
+      `Groq response missing 'text' field. Got keys: ${Object.keys(data).join(", ")}`
     );
   }
 
